@@ -1,0 +1,9 @@
+---
+title: "Blog"
+listing:
+  contents: blog
+  sort: "date desc"
+  feed: true
+  categories: true
+  filter-ui: true
+---

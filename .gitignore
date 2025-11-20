@@ -1,3 +1,24 @@
+# --- Quarto build outputs ---
+# The rendered site (static HTML, assets)
+_site/
+# Temporary preview output
+.quarto/
+
+# --- Editor and system files ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# --- Quarto cache ---
+# (contains executed code caches, optional to ignore)
+*_cache/
+cache/
+.quarto-cache/
+
+# OS packages
+*.deb
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

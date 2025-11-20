@@ -1,0 +1,34 @@
+---
+title: "Exploring Data with Python"
+description: "A quick example of embedding Python code and plots in a Quarto post."
+date: 2025-11-20
+categories: [python, data]
+bibliography: references.bib
+execute:
+  echo: true
+  warning: false
+  message: false
+jupyter: python3
+---
+
+In this post we’ll do a quick exploration using Python and pandas.
+
+```{python}
+# Create sample data
+print(123)
+```
+
+## Activation Checkpoints
+
+Activation checkpointing consists of selectively forgetting activations during each training loop, effectively trading off compute for a shallower memory footprint. The concept (expertly presented in [this blog post](https://medium.com/tensorflow/fitting-larger-networks-into-memory-583e3c758ff9) by @2018_medium_activation_checkpoint) is a clever exploitation of dependencies in the model graph that can reduce memory requirements during training from `O(n^2)` to `O(sqrt(n))` - all for the modest cost of an extra forward pass.
+
+If we picture the training loop as a graph, with each layer's activations as nodes on the graph, and activations triggering dependent nodes in a cascading fashion, one way of managing our GPU's memory would be to store every node's values until a complete pass of the training loop is complete. 
+Clearly, this would not be a good idea if - after all, why store the activations of the first nodes in the graph if we only need the preceding node's activations for any given node? It would be much more memory efficient to forget node values as we progress through the graph:
+
+![Rich man's activation checkpointing [@2018_medium_activation_checkpoint].](activation_checkpoint_rich.webp "Rich man's activation checkpointing")
+
+A big problem with training is that the backward pass starts from the loss node (computed from the last node of the forward pass) and moves in reverse order - if we only vacate computed nodes from memory after they're no longer needed, we will be keeping a lot of forward pass activations as we walk through the backward pass. The poor man's solution would be to forget every node if it is not *immediately* required - but this results in a quadratic increase of computations:
+
+![Poor man's activation checkpointing [@2018_medium_activation_checkpoint].](activation_checkpoint_poor.webp "Poor man's activation checkpointing")
+
+@2016_activation_checkpoint found an effective middle ground: by saving intermediate nodes every `sqrt(n)` steps - **checkpoints** - and forgetting all those that won't be needed in the next step, the memory footprint can be greatly reduced, for the modest cost of a second forward pass' worth of compute.
