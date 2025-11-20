@@ -27,7 +27,7 @@ Clearly, this would not be a good idea if - after all, why store the activations
 
 ![Rich man's activation checkpointing [@2018_medium_activation_checkpoint].](activation_checkpoint_rich.webp "Rich man's activation checkpointing")
 
-A big problem with training is that the backward pass starts from the loss node (computed from the last node of the forward pass) and moves in reverse order - if we only vacate computed nodes from memory after they're no longer needed, we will be keeping a lot of forward pass activations as we walk through the backward pass. The poor man's solution would be to forget every node if it is not *immediately* required - but this results in a quadratic increase of computations:
+A big problem with training is that the backward pass starts from the loss node (computed from the last node of the forward pass) and moves in reverse order - if we only vacate computed nodes from memory after they're no longer needed, we will be keeping a lot of forward pass activations as we walk through the backward pass. The poor man's solution would be to forget every node *as soon as it is consumed* - but this results in a quadratic increase of computations:
 
 ![Poor man's activation checkpointing [@2018_medium_activation_checkpoint].](activation_checkpoint_poor.webp "Poor man's activation checkpointing")
 
