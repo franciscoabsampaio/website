@@ -1,3 +1,6 @@
+execute:
+  freeze: auto
+
 project:
   type: website
 
@@ -17,7 +20,7 @@ website:
 format:
   html:
     theme:
-      - cosmo
-      - brand
+      lux
     css: styles.css
+    respect-user-color-scheme: true
     toc: true

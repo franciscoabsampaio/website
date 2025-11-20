@@ -1,5 +1,6 @@
 # --- Quarto build outputs ---
 # The rendered site (static HTML, assets)
+_freeze/
 _site/
 # Temporary preview output
 .quarto/

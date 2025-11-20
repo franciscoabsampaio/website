@@ -9,6 +9,7 @@ execute:
   warning: false
   message: false
 jupyter: python3
+draft: true
 ---
 
 In this post we’ll do a quick exploration using Python and pandas.
