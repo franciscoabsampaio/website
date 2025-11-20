@@ -3,6 +3,7 @@ execute:
 
 project:
   type: website
+  output-dir: docs
 
 website:
   title: "Francisco A. B. Sampaio"
