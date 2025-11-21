@@ -37,3 +37,9 @@ A big problem with training is that the backward pass starts from the loss node 
 ![Smart man's activation checkpointing [@2018_medium_activation_checkpoint].](images/activation_checkpoint_smart.webp "Smart man's activation checkpointing")
 
 [This pebble game we're playing](https://en.wikipedia.org/wiki/Pebble_game) can get extremely complex (dynamic programming, tree decomposition, etc), but this much will suffice us.
+
+## Data Parallelism, Model Parallelism and Pipelining
+
+1. Data Parallelism
+2. Model Parallelism
+3. Pipelining
