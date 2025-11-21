@@ -10,72 +10,7 @@
 <atom:link href="https://franciscoabsampaio.com/blog.xml" rel="self" type="application/rss+xml"/>
 <description></description>
 <generator>quarto-1.8.26</generator>
-<lastBuildDate>Thu, 20 Nov 2025 00:00:00 GMT</lastBuildDate>
-<item>
-  <title>Exploring Data with Python</title>
-  <link>https://franciscoabsampaio.com/blog/2025-2b-model-at-home/</link>
-  <description><![CDATA[ 
-
-
-
-
-<p>In this post we’ll do a quick exploration using Python and pandas.</p>
-<div id="f4049d78" class="cell" data-execution_count="1">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
-background-color: null;
-font-style: inherit;"># Create sample data</span></span>
-<span id="cb1-2"><span class="bu" style="color: null;
-background-color: null;
-font-style: inherit;">print</span>(<span class="dv" style="color: #AD0000;
-background-color: null;
-font-style: inherit;">123</span>)</span></code></pre></div></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>123</code></pre>
-</div>
-</div>
-<section id="activation-checkpoints" class="level2">
-<h2 class="anchored" data-anchor-id="activation-checkpoints">Activation Checkpoints</h2>
-<p>Activation checkpointing consists of selectively forgetting activations during each training loop, effectively trading off compute for a shallower memory footprint. The concept (expertly presented in <a href="https://medium.com/tensorflow/fitting-larger-networks-into-memory-583e3c758ff9">this blog post</a> by <span class="citation" data-cites="2018_medium_activation_checkpoint">Bulatov (2018)</span>) is a clever exploitation of dependencies in the model graph that can reduce memory requirements during training from <code>O(n^2)</code> to <code>O(sqrt(n))</code> - all for the modest cost of an extra forward pass.</p>
-<p>If we picture the training loop as a directed graph, with each layer’s activations as nodes on the graph, and activations triggering dependent nodes in a cascading fashion, one way of managing our GPU’s memory would be to store every node’s values until a complete pass of the training loop is complete. Clearly, this would not be a good idea if - after all, why store the activations of the first nodes in the graph if we only need the preceding node’s activations for any given node? It would be much more memory efficient to forget node values as we progress through the graph:</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://franciscoabsampaio.com/blog/2025-2b-model-at-home/images/activation_checkpoint_rich.webp" title="Rich man's activation checkpointing" class="img-fluid figure-img"></p>
-<figcaption>Rich man’s activation checkpointing <span class="citation" data-cites="2018_medium_activation_checkpoint">(Bulatov 2018)</span>.</figcaption>
-</figure>
-</div>
-<p>A big problem with training is that the backward pass starts from the loss node (computed from the last node of the forward pass) and moves in reverse order - if we only vacate computed nodes from memory after they’re no longer needed, we will be keeping a lot of forward pass activations as we walk through the backward pass. The poor man’s solution would be to forget every node <em>as soon as it is consumed</em> - but this results in a quadratic increase of computations:</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://franciscoabsampaio.com/blog/2025-2b-model-at-home/images/activation_checkpoint_poor.webp" title="Poor man's activation checkpointing" class="img-fluid figure-img"></p>
-<figcaption>Poor man’s activation checkpointing <span class="citation" data-cites="2018_medium_activation_checkpoint">(Bulatov 2018)</span>.</figcaption>
-</figure>
-</div>
-<p><span class="citation" data-cites="2016_activation_checkpoint">Chen et al. (2016)</span> found an effective middle ground: by saving intermediate nodes every <code>sqrt(n)</code> steps - <strong>checkpoints</strong> - and forgetting all those that won’t be needed in the next step, the memory footprint can be greatly reduced, for the modest cost of a second forward pass’ worth of compute:</p>
-<div class="quarto-figure quarto-figure-center">
-<figure class="figure">
-<p><img src="https://franciscoabsampaio.com/blog/2025-2b-model-at-home/images/activation_checkpoint_smart.webp" title="Smart man's activation checkpointing" class="img-fluid figure-img"></p>
-<figcaption>Smart man’s activation checkpointing <span class="citation" data-cites="2018_medium_activation_checkpoint">(Bulatov 2018)</span>.</figcaption>
-</figure>
-</div>
-<p><a href="https://en.wikipedia.org/wiki/Pebble_game">This pebble game we’re playing</a> can get extremely complex (dynamic programming, tree decomposition, etc), but this much will suffice us.</p>
-
-
-
-</section>
-
-<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0">
-<div id="ref-2018_medium_activation_checkpoint" class="csl-entry">
-Bulatov, Yaroslav. 2018. <span>“Fitting Larger Networks into Memory.”</span> 2018. <a href="https://medium.com/tensorflow/fitting-larger-networks-into-memory-583e3c758ff9">https://medium.com/tensorflow/fitting-larger-networks-into-memory-583e3c758ff9</a>.
-</div>
-<div id="ref-2016_activation_checkpoint" class="csl-entry">
-Chen, Tianqi, Bing Xu, Chiyuan Zhang, and Carlos Guestrin. 2016. <span>“Training Deep Nets with Sublinear Memory Cost.”</span> <em>arXiv Preprint arXiv:1604.06174</em>.
-</div>
-</div></section></div> ]]></description>
-  <category>python</category>
-  <category>data</category>
-  <guid>https://franciscoabsampaio.com/blog/2025-2b-model-at-home/</guid>
-  <pubDate>Thu, 20 Nov 2025 00:00:00 GMT</pubDate>
-</item>
+<lastBuildDate>Wed, 22 Oct 2025 23:00:00 GMT</lastBuildDate>
 <item>
   <title>Tutorial: Reproducible Spark+Delta Tests Without the Hassle</title>
   <link>https://franciscoabsampaio.com/blog/2025-tutorial-spark-connect/</link>
@@ -445,6 +380,7 @@ font-style: inherit;">"bird"</span></span></code></pre></div></div>
   <category>docker</category>
   <guid>https://franciscoabsampaio.com/blog/2025-tutorial-spark-connect/</guid>
   <pubDate>Wed, 22 Oct 2025 23:00:00 GMT</pubDate>
+  <media:content url="https://franciscoabsampaio.com/blog/2025-tutorial-spark-connect/docker_whale.webp" medium="image" type="image/webp"/>
 </item>
 </channel>
 </rss>

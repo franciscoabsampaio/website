@@ -2,11 +2,7 @@
 title: "Tutorial: Reproducible Spark+Delta Tests Without the Hassle"
 date: 2025-10-23
 categories: [spark, delta, docker]
-execute:
-  echo: true
-  warning: false
-  message: false
-jupyter: python3
+image: docker_whale.webp
 ---
 
 > **Pre-requisite:** if you’re not familiar with Docker, I recommend you follow the [official introductory guide](https://docs.docker.com/get-started/introduction/).

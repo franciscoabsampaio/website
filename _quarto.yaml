@@ -8,6 +8,7 @@ project:
 website:
   title: "Francisco A. B. Sampaio"
   site-url: "https://franciscoabsampaio.com"   # Important for RSS to work correctly
+  favicon: images/favicon.ico
   navbar:
     left:
       - href: index.qmd
