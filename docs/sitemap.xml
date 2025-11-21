@@ -2,10 +2,18 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://franciscoabsampaio.com/index.html</loc>
-    <lastmod>2025-11-20T16:59:21.332Z</lastmod>
+    <lastmod>2025-11-21T10:42:58.173Z</lastmod>
   </url>
   <url>
     <loc>https://franciscoabsampaio.com/blog.html</loc>
     <lastmod>2025-11-20T16:59:21.331Z</lastmod>
+  </url>
+  <url>
+    <loc>https://franciscoabsampaio.com/blog/2025-tutorial-spark-connect/index.html</loc>
+    <lastmod>2025-11-21T11:05:01.111Z</lastmod>
+  </url>
+  <url>
+    <loc>https://franciscoabsampaio.com/blog/2025-2b-model-at-home/index.html</loc>
+    <lastmod>2025-11-20T17:40:18.112Z</lastmod>
   </url>
 </urlset>

@@ -11,9 +11,11 @@ website:
   navbar:
     left:
       - href: index.qmd
-        text: Home
+        text: About Me
       - href: blog.qmd
         text: Blog
+    background: "#0d0c1d"  # background color
+    foreground: "#EFE7E0"  # text (link) color
   page-footer:
     left: "© 2025 Francisco A. B. Sampaio"
     right: "Built with [Quarto](https://quarto.org)"
@@ -21,7 +23,10 @@ website:
 format:
   html:
     theme:
-      lux
-    css: styles.css
+      - lux
+      - styles.scss
     respect-user-color-scheme: true
+    code-block-border-left: "#EE6C4D"
+    code-line-numbers: true
+    highlight-style: breeze
     toc: true
