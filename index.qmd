@@ -1,7 +1,9 @@
 ---
-title: "Francisco A. B. Sampaio"
+title: "About Me"
 ---
 
-Hi! I'm Francisco and this is my personal blog.
+Hi!
 
-Here, I'll be sharing 
+I'm Francisco and this is my personal blog/website, where I'll be sharing technical tutorials, thoughts, and whatever I see fit!
+
+Feel free to look around!

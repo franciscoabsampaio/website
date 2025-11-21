@@ -2,7 +2,7 @@ build:
 	quarto render
 	git add docs
 	git commit -m "Build site"
-	git push
+	git push origin main
 
 preview:
 	quarto preview
