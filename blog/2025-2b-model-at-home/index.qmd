@@ -19,6 +19,41 @@ In this post we’ll do a quick exploration using Python and pandas.
 print(123)
 ```
 
+## Mixed Precision
+
+## Online Softmax and FlashAttention
+
+- motivation for why we would like to make attention more performant
+- explain the main issue with attention is slow memory access
+
+Most operations in Transformers are bottlenecked by memory access [@2022_flashattention].
+
+GPUs have two main kinds of memory - on-chip SRAM (shared memory) and HBM (global memory)
+As an example, NVIDIA's V100 GPU has 40-80 GB of high-bandwidth memory (HBM) with a bandwidth of 1.5-2.0 TB/s and 192KB of on-chip shared memory (SRAM) for every 108 streaming multiprocessors with bandwidth estimated around 19 TB/s [@2022_flashattention] - about an order of magnitude faster.
+
+FlashAttention [@2022_flashattention] was introduced in an effort to minimize access to HBM.
+
+One amazing fact about FlashAttention is that we don't need to materialize X and A matrices
+on global memory, instead we fuse the entire computation in formula 1 in a single CUDA kernel.
+
+A common approach to accelerate memory-bound operations is termed **kernel fusion**, that is, the fusion of multiple operations (kernels) into a single set of instructions, such that only a single access to memory is needed.
+
+Hence, this requires:
+- Computing the softmax reduction without access to the whole input
+- Not storing any of the large intermediate matrices, namely, for backward passes
+
+us to design an algorithm that carefully manages on-chip memory because NVIDIA GPU's shared memory (we want to allocate to SRAM because HBM is much slower)
+
+The softmax algorithm is ???. However, because exponents can easily overflow (e.g. the maximum number that float16 can support is 65536, $x\geq11$ overflows [@2023_from_online_softmax_to_flashattention]), algorithms usually subtract the maximum $x_i$ in the sequence from the exponent (multiplying both the numerator and denominator by $e^{-x_{max}}$ - the same as multiplying by $\frac{1}{1}$) to prevent this. Unfortunately, this requires an additional memory access across *all blocks of the $QK^T$ matrix*, which not only hurts performance, but any hope of efficiently parallelizing the softmax operation.
+
+Online Softmax [@2018_online_softmax] was an improvement on the original softmax algorithm, which allows the softmax to be computed in a running fashion, unlocking **performance gains**, **distributed runs**, and **longer contexts**. It uses a neat little trick we won't be delving into here. If you want to learn more, @2024_flashattention_umar explains it very well, tying it elegantly to FlashAttention.
+
+Although Online Softmax lets us reduce the number of global memory accesses from 3 to 2, there is no way of trimming it to just 1 global I/O.
+
+*Surprisingly*, when the remaining attention formula is thrown into the mix, it becomes possible. **This is the breakthrough of FlashAttention** [@2022_flashattention]. The algorithm is compatible with matrix tiling and fits into a GPU's shared memory.
+
+the authors confirm that FlashAttention speeds up model training and improves model quality by modelling longer context.
+
 ## Activation Checkpoints
 
 Activation checkpointing consists of selectively forgetting activations during each training loop, effectively trading off compute for a shallower memory footprint. The concept (expertly presented in [this blog post](https://medium.com/tensorflow/fitting-larger-networks-into-memory-583e3c758ff9) by @2018_medium_activation_checkpoint) is a clever exploitation of dependencies in the model graph that can reduce memory requirements during training from `O(n^2)` to `O(sqrt(n))` - all for the modest cost of an extra forward pass.
