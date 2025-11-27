@@ -33,11 +33,11 @@ Attention layers repeatedly access large intermediate matrices that do not fit i
 
 The softmax function
 
-$softmax(x_i)=\frac{e^{x_i}}{\sum{j}{e^{x_j}}}$
+$$\text{softmax}(x_i)=\frac{e^{x_i}}{\sum_{j}{e^{x_j}}}$$
 
 is numerically unstable for large inputs, because exponentials grow extremely fast - for example, FP16 overflows around 11 [@2023_from_online_softmax_to_flashattention]. It is standard practice to subtract the maximum element in the row (aka the **safe softmax**):
 
-$\text{softmax}(x_i)=\frac{e^{x_i-x_{max}}}{\sum{j}{e^{x_j-x_{max}}}}$
+$$\text{softmax}(x_i)=\frac{e^{x_i-x_{max}}}{\sum_{j}{e^{x_j-x_{max}}}}$$
 
 However, finding $x_\text{max}$ requires scanning the entire row of $QK^\top$ beforehand. In a naïve implementation, this means:
 
