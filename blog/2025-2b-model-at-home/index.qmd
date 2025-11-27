@@ -31,7 +31,7 @@ Most operations in Transformers are bottlenecked by memory access [@2022_flashat
 GPUs have two main kinds of memory - on-chip SRAM (shared memory) and HBM (global memory)
 As an example, NVIDIA's V100 GPU has 40-80 GB of high-bandwidth memory (HBM) with a bandwidth of 1.5-2.0 TB/s and 192KB of on-chip shared memory (SRAM) for every 108 streaming multiprocessors with bandwidth estimated around 19 TB/s [@2022_flashattention] - about an order of magnitude faster.
 
-FlashAttention [@2022_flashattention] was introduced in an effort to minimize access to HBM.
+FlashAttention (FA) [@2022_flashattention] was introduced in an effort to minimize access to HBM.
 
 One amazing fact about FlashAttention is that we don't need to materialize X and A matrices
 on global memory, instead we fuse the entire computation in formula 1 in a single CUDA kernel.
@@ -44,7 +44,7 @@ Hence, this requires:
 
 us to design an algorithm that carefully manages on-chip memory because NVIDIA GPU's shared memory (we want to allocate to SRAM because HBM is much slower)
 
-The softmax algorithm is ???. However, because exponents can easily overflow (e.g. the maximum number that float16 can support is 65536, $x\geq11$ overflows [@2023_from_online_softmax_to_flashattention]), algorithms usually subtract the maximum $x_i$ in the sequence from the exponent (multiplying both the numerator and denominator by $e^{-x_{max}}$ - the same as multiplying by $\frac{1}{1}$) to prevent this. Unfortunately, this requires an additional memory access across *all blocks of the $QK^T$ matrix*, which not only hurts performance, but any hope of efficiently parallelizing the softmax operation.
+The softmax algorithm is ???[explain softmax]. Because exponents can easily overflow (e.g. if the maximum number that float16 can support is 65536, then $x\geq11$ overflows [@2023_from_online_softmax_to_flashattention]), algorithms usually subtract the maximum $x_i$ in the sequence from the exponent (multiplying both the numerator and denominator by $e^{-x_{max}}$ - the same as multiplying by $\frac{1}{1}$) to prevent this. This is known as the safe softmax. Unfortunately, determining the maximum of a sequence requires an additional memory access across *all blocks of the $QK^T$ matrix*, which not only hurts performance, but any hope of efficiently parallelizing the softmax operation.
 
 Online Softmax [@2018_online_softmax] was an improvement on the original softmax algorithm, which allows the softmax to be computed in a running fashion, unlocking **performance gains**, **distributed runs**, and **longer contexts**. It uses a neat little trick we won't be delving into here. If you want to learn more, @2024_flashattention_umar explains it very well, tying it elegantly to FlashAttention.
 
@@ -52,7 +52,15 @@ Although Online Softmax lets us reduce the number of global memory accesses from
 
 *Surprisingly*, when the remaining attention formula is thrown into the mix, it becomes possible. **This is the breakthrough of FlashAttention** [@2022_flashattention]. The algorithm is compatible with matrix tiling and fits into a GPU's shared memory.
 
-the authors confirm that FlashAttention speeds up model training and improves model quality by modelling longer context.
+[explain FA]
+
+the authors confirm that FA speeds up model training and improves model quality by modelling longer context.
+
+[perhaps explain FA2 here? and change the paragpraph that comes after]
+
+Since the original FA algorithm have been proposed, upgrades to the algorithm have been proposed, namely FA2 [@2023_flashattention_2] and FA3 [@2024_flashattention_3], as well as FA4 (work-in-progress) [@2024_flashattention_4]. It is important to understand that whereas FA and FA2 are the result of the original attention algorithm's lack of IO awareness, FA3 and FA4 go above and beyond hardware-awareness - they are *hardware-specific*. FA3 and FA4 were proposed to deliberately take advantage of the unique features of NVIDIA's H100 and B200 chips, respectively. To do so, they incorporate low-level hardware concepts into the algorithms themselves, in order to achieve the highest possible level of GPU utilization.
+
+The practical consequence of this is that for those of us not running datacenter-grade GPUs, FA3 and FA4 will not yield any significant improvement, and may instead hinder performance, if they can even run.
 
 ## Activation Checkpoints
 
