@@ -21,46 +21,76 @@ print(123)
 
 ## Mixed Precision
 
-## Online Softmax and FlashAttention
+## Online Softmax and Flash Attention
 
-- motivation for why we would like to make attention more performant
-- explain the main issue with attention is slow memory access
+Due to the quadratic complexity of attention, compute could be blamed for less-than-ideal performance, but modern Transformers are actually memory-bound: most of their layers move far more data than they compute. As a result, the primary bottleneck in attention is actually *slow memory access*, not floating-point arithmetic [@2022_flashattention].
 
-Most operations in Transformers are bottlenecked by memory access [@2022_flashattention].
+GPUs expose a strong hierarchy between on-chip shared memory (SRAM) and off-chip high-bandwidth memory (HBM, aka global memory). For example, NVIDIA’s V100 has 40–80 GB of HBM, with a bandwidth of 1.5–2.0 TB/s, but only 192 KB of on-chip SRAM for every 108 streaming multiprocessors, with an effective bandwidth around 19 TB/s - an order of magnitude higher [@2022_flashattention].
 
-GPUs have two main kinds of memory - on-chip SRAM (shared memory) and HBM (global memory)
-As an example, NVIDIA's V100 GPU has 40-80 GB of high-bandwidth memory (HBM) with a bandwidth of 1.5-2.0 TB/s and 192KB of on-chip shared memory (SRAM) for every 108 streaming multiprocessors with bandwidth estimated around 19 TB/s [@2022_flashattention] - about an order of magnitude faster.
+Attention layers repeatedly access large intermediate matrices that do not fit in SRAM, so they repeatedly fall back to global memory. This is the root cause of the performance bottleneck. Cirvumventing this would require carefully managing SRAM capacity and dataflow, to avoid reading and writing anything to HBM.
 
-FlashAttention (FA) [@2022_flashattention] was introduced in an effort to minimize access to HBM.
+### The Softmax Problem
 
-One amazing fact about FlashAttention is that we don't need to materialize X and A matrices
-on global memory, instead we fuse the entire computation in formula 1 in a single CUDA kernel.
+The softmax function
 
-A common approach to accelerate memory-bound operations is termed **kernel fusion**, that is, the fusion of multiple operations (kernels) into a single set of instructions, such that only a single access to memory is needed.
+$softmax(x_i)=\frac{e^{x_i}}{\sum{j}{e^{x_j}}}$
 
-Hence, this requires:
-- Computing the softmax reduction without access to the whole input
-- Not storing any of the large intermediate matrices, namely, for backward passes
+is numerically unstable for large inputs, because exponentials grow extremely fast - for example, FP16 overflows around 11 [@2023_from_online_softmax_to_flashattention]. It is standard practice to subtract the maximum element in the row (aka the **safe softmax**):
 
-us to design an algorithm that carefully manages on-chip memory because NVIDIA GPU's shared memory (we want to allocate to SRAM because HBM is much slower)
+$\text{softmax}(x_i)=\frac{e^{x_i-x_{max}}}{\sum{j}{e^{x_j-x_{max}}}}$
 
-The softmax algorithm is ???[explain softmax]. Because exponents can easily overflow (e.g. if the maximum number that float16 can support is 65536, then $x\geq11$ overflows [@2023_from_online_softmax_to_flashattention]), algorithms usually subtract the maximum $x_i$ in the sequence from the exponent (multiplying both the numerator and denominator by $e^{-x_{max}}$ - the same as multiplying by $\frac{1}{1}$) to prevent this. This is known as the safe softmax. Unfortunately, determining the maximum of a sequence requires an additional memory access across *all blocks of the $QK^T$ matrix*, which not only hurts performance, but any hope of efficiently parallelizing the softmax operation.
+However, finding $x_\text{max}$ requires scanning the entire row of $QK^\top$ beforehand. In a naïve implementation, this means:
 
-Online Softmax [@2018_online_softmax] was an improvement on the original softmax algorithm, which allows the softmax to be computed in a running fashion, unlocking **performance gains**, **distributed runs**, and **longer contexts**. It uses a neat little trick we won't be delving into here. If you want to learn more, @2024_flashattention_umar explains it very well, tying it elegantly to FlashAttention.
+1. Reading all values to find max;
+2. Reading them again to compute numerator;
+3. Reading them again to compute denominator.
 
-Although Online Softmax lets us reduce the number of global memory accesses from 3 to 2, there is no way of trimming it to just 1 global I/O.
+Three full global-memory passes - far too slow, and hard to parallelise across tiles.
 
-*Surprisingly*, when the remaining attention formula is thrown into the mix, it becomes possible. **This is the breakthrough of FlashAttention** [@2022_flashattention]. The algorithm is compatible with matrix tiling and fits into a GPU's shared memory.
+### Online Softmax
 
-[explain FA]
+Online Softmax [@2018_online_softmax] removes this limitation by computing the softmax statistics incrementally, in a streaming fashion. Instead of needing the entire row at once, it maintains running values for:
 
-the authors confirm that FA speeds up model training and improves model quality by modelling longer context.
+- The running maximum $x_{max}$;
+- The running sum of exponentials (the denominator $\sum$).
 
-[perhaps explain FA2 here? and change the paragpraph that comes after]
+This unlocks asynchronous parallelism, long-context scalability, and fewer global memory passes. It uses a neat little trick we won't be delving into here - if you want to learn more, @2024_flashattention_umar explains it very well, and ties it elegantly to FlashAttention.
 
-Since the original FA algorithm have been proposed, upgrades to the algorithm have been proposed, namely FA2 [@2023_flashattention_2] and FA3 [@2024_flashattention_3], as well as FA4 (work-in-progress) [@2024_flashattention_4]. It is important to understand that whereas FA and FA2 are the result of the original attention algorithm's lack of IO awareness, FA3 and FA4 go above and beyond hardware-awareness - they are *hardware-specific*. FA3 and FA4 were proposed to deliberately take advantage of the unique features of NVIDIA's H100 and B200 chips, respectively. To do so, they incorporate low-level hardware concepts into the algorithms themselves, in order to achieve the highest possible level of GPU utilization.
+In practice, Online Softmax reduces global I/O from 3 passes to 2. But even Online Softmax cannot reduce it to 1 pass on its own.
 
-The practical consequence of this is that for those of us not running datacenter-grade GPUs, FA3 and FA4 will not yield any significant improvement, and may instead hinder performance, if they can even run.
+### Flash Attention
+
+Surprisingly, when Online Softmax is paired with the rest of the attention formula, it becomes possible to perform the entire attention computation using just one pass over K and V tiles (matrix tiling consists of splitting a matrix into blocks or tiles).
+
+This is the core innovation of FlashAttention [@2022_flashattention]: it restructures the attention operation so that it can be executed tile-by-tile, entirely inside shared memory, without ever materialising large intermediate matrices in HBM. This practice of combining multiple operations (CUDA *kernels*, with CUDA being the environment/toolkit for interfacing with NVIDIA GPUs) into a single set of instructions is termed **kernel fusion**. Because each tile fits in shared memory and all operations were fused into one, only a single access to memory is required.
+
+Here is a high-level description of the FlashAttention algorithm:
+
+1. Load a tile of K and V from global memory into shared memory.
+2. Load the corresponding tile of Q.
+3. Compute partial attention scores and maintain Online Softmax state in SRAM.
+4. Immediately apply the softmax-weighted values to accumulate the output.
+5. Move on to the next tile.
+
+Each tile fits in fast SRAM, and we never store intermediate matrices like $QK^\top$, so the memory footprint is dramatically reduced. This enables:
+
+- Large speedups (often 2-4×);
+- Support for far longer context windows;
+- Lower memory usage and improved training stability.
+
+Exactly what we want!
+
+### FA2, FA3, and FA4
+
+FlashAttention (FA) represented a shift in mindset, from high-level compute algorithms to ones aware of IO and the idiosyncrasies of the underlying hardware. This shift has only become more obvious in subsequent iterations of the FA algorithm, going beyond hardware-awareness to *hardware-specificity*, relying on low-level features of the GPU to achieve the highest possible level of hardware utilisation:
+
+- FA2 [@2023_flashattention_2]: Improves tiling, parallelism, and SRAM usage; generally the fastest algorithm on Ampere, Ada, and older GPUs.
+- FA3 [@2024_flashattention_3]: Built specifically for Hopper (H100). Relies on warp specialization, TMA, and WGMMA - features not available on older architectures.
+- FA4 [@2024_flashattention_4] (work-in-progress): Extends these ideas to Blackwell (B100/B200), taking advantage of new low-precision Tensor Cores (e.g., FP4/FP6) and improved asynchronous memory pipelines.
+
+For most users running consumer or workstation GPUs - FA3 and FA4 provide no practical advantage, because they lack the hardware features FA3/FA4 rely on. Running them may result in performance deterioration - that is, if they even run.
+
+In practice, and for the majority of users, FA2 is the correct choice.
 
 ## Activation Checkpoints
 
